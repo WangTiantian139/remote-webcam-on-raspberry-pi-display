@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <meta charset=" utf-8" />
+  <script>
+    const wsurl = "ws://your.ip.of.raspberrypi/send-frame";
+    const socket = new WebSocket(wsurl);
+    const img = new Image();
+
+    function sendMsg() {
+      socket.send("update");
+      console.log("socket send update");
+    }
+    function Uint8ToString(u8a) {
+      var CHUNK_SZ = 0x8000;
+      var c = [];
+      for (var i = 0; i < u8a.length; i += CHUNK_SZ) {
+        c.push(String.fromCharCode(...u8a.subarray(i, i + CHUNK_SZ)));
+      }
+      return c.join("");
+    }
+    function drawFrame(frame) {
+      var uint8Arr = new Uint8Array(frame);
+      var str = Uint8ToString(uint8Arr);
+      var base64String = btoa(str);
+
+      img.onload = function () {
+        context.drawImage(this, 0, 0, canvas.width, canvas.height);
+      };
+      img.src = "data:image/png;base64," + base64String;
+    }
+
+    socket.onopen = () => {
+      console.log("socket connected");
+    };
+    socket.onmessage = (msg) => {
+      msg.data.arrayBuffer().then((buffer) => {
+        drawFrame(buffer);
+        console.log("socket frame updated");
+      });
+    };
+  </script>
+</head>
+
+<body>
+  <canvas id="canvas-video" width="640" height="480"></canvas>
+  <script>
+    const canvas = document.getElementById("canvas-video");
+    const context = canvas.getContext("2d");
+
+    // show loading notice
+    context.fillStyle = "#333";
+    context.fillText("Loading...", canvas.width / 2 - 30, canvas.height / 3);
+
+    setInterval(() => {
+      socket.send("update");
+    }, 100);
+  </script>
+</body>
+
+</html>
